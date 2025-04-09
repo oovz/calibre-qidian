@@ -17,33 +17,17 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Python 3.10
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: "3.10"
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt || true
 
     - name: Build release zip
       run: python build.py
 
-    - name: Create GitHub Release
-      id: create_release
-      uses: actions/create-release@v1
+    - name: Release
+      uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.ref_name }}
-        release_name: Release ${{ github.ref_name }}
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Upload release asset
-      uses: actions/upload-release-asset@v1
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: out/CalibreQidian.zip
+        name: Release ${{ github.ref_name }}
+        files: out/CalibreQidian.zip
         asset_name: CalibreQidian-${{ github.ref_name }}.zip
-        asset_content_type: application/zip
+        fail_on_unmatched_files: true
