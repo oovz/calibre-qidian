@@ -29,5 +29,4 @@ jobs:
       with:
         name: Release ${{ github.ref_name }}
         files: out/CalibreQidian.zip
-        asset_name: CalibreQidian-${{ github.ref_name }}.zip
         fail_on_unmatched_files: true
