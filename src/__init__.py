@@ -28,7 +28,7 @@ BING_SEARCH_URL = 'https://www.bing.com/search?q=%s+site%%3Aqidian.com'
 BING_SEARCH_RESULTS_XPATH = '//ol[@id="b_results"]/li[@class="b_algo"]//h2/a'
 
 PROVIDER_ID = "qidian"
-PROVIDER_VERSION = (1, 2, 1)
+PROVIDER_VERSION = (1, 2, 2)
 PROVIDER_AUTHOR = 'Otaro'
 
 def parse_html(raw):
@@ -381,17 +381,17 @@ class Qidian(Source):
         except:
             log.exception('Failed to download latest cover from:', cover_url)
 
-        if get_best_cover is False:
-            old_cover_url = QIDIAN_BOOKCOVER_URL_OLD % qidian_id
-            br = self.browser
-            log('Downloading old cover from:', old_cover_url)
-            try:
-                time.sleep(1)
-                cdata = br.open_novisit(old_cover_url, timeout=timeout).read()
-                if cdata:
-                    result_queue.put((self, cdata))
-            except:
-                log.exception('Failed to download old cover from:', old_cover_url)
+        # @TODO: implement a comparison method for get_best_cover
+        old_cover_url = QIDIAN_BOOKCOVER_URL_OLD % qidian_id
+        br = self.browser
+        log('Downloading old cover from:', old_cover_url)
+        try:
+            time.sleep(1)
+            cdata = br.open_novisit(old_cover_url, timeout=timeout).read()
+            if cdata:
+                result_queue.put((self, cdata))
+        except:
+            log.exception('Failed to download old cover from:', old_cover_url)
 
 
 if __name__ == "__main__":
