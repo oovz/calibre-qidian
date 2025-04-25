@@ -28,7 +28,7 @@ BING_SEARCH_URL = 'https://www.bing.com/search?q=%s+site%%3Aqidian.com'
 BING_SEARCH_RESULTS_XPATH = '//ol[@id="b_results"]/li[@class="b_algo"]//h2/a'
 
 PROVIDER_ID = "qidian"
-PROVIDER_VERSION = (1, 2, 2)
+PROVIDER_VERSION = (1, 2, 3)
 PROVIDER_AUTHOR = 'Otaro'
 
 def parse_html(raw):
@@ -43,7 +43,7 @@ def parse_html(raw):
 
 # a metadata download plugin
 class Qidian(Source):
-    name = 'Qidian.com'  # Name of the plugin
+    name = '起点中文网'  # Name of the plugin
     description = 'Downloads metadata and covers from Qidian.'
     supported_platforms = ['windows', 'osx', 'linux']  # Platforms this plugin will run on
     author = PROVIDER_AUTHOR  # The author of this plugin
