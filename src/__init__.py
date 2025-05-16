@@ -28,7 +28,7 @@ BING_SEARCH_URL = 'https://www.bing.com/search?q=%s+site%%3Aqidian.com'
 BING_SEARCH_RESULTS_XPATH = '//ol[@id="b_results"]/li[@class="b_algo"]//h2/a'
 
 PROVIDER_ID = "qidian"
-PROVIDER_VERSION = (1, 2, 3)
+PROVIDER_VERSION = (1, 3, 0)
 PROVIDER_AUTHOR = 'Otaro'
 
 def parse_html(raw):
@@ -44,7 +44,7 @@ def parse_html(raw):
 # a metadata download plugin
 class Qidian(Source):
     name = '起点中文网'  # Name of the plugin
-    description = 'Downloads metadata and covers from Qidian.'
+    description = 'Downloads metadata and covers from Qidian (qidian.com)'
     supported_platforms = ['windows', 'osx', 'linux']  # Platforms this plugin will run on
     author = PROVIDER_AUTHOR  # The author of this plugin
     version = PROVIDER_VERSION  # The version number of this plugin
@@ -249,10 +249,15 @@ class Qidian(Source):
             result_queue.put(mi)
 
             return None
+        
+        # If we have other identifiers, give up
+        if identifiers:
+            log.info("Other identifiers found, giving up")
+            return None
 
-        # If we don't have an ID, ensure we have a title
+        # If we don't have ID, ensure we have a title
         if not title:
-            log.error('Title is required for searching')
+            log.error('Title is required for search')
             return None
             
         # We have title, proceed with search
