@@ -28,7 +28,7 @@ BING_SEARCH_URL = 'https://www.bing.com/search?q=%s+site%%3Aqidian.com'
 BING_SEARCH_RESULTS_XPATH = '//ol[@id="b_results"]/li[@class="b_algo"]//h2/a'
 
 PROVIDER_ID = "qidian"
-PROVIDER_VERSION = (1, 3, 0)
+PROVIDER_VERSION = (1, 3, 1)
 PROVIDER_AUTHOR = 'Otaro'
 
 def parse_html(raw):
@@ -137,9 +137,6 @@ class Qidian(Source):
         
         if author:
             search_terms.append(author)
-        
-        # Add "起点" (Qidian) and "小说" (novel) to improve results for Chinese books
-        search_terms.extend(["起点", "小说"])
         
         query = " ".join(search_terms)
         encoded_query = quote(query)
