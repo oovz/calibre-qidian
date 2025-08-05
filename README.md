@@ -22,6 +22,6 @@ Calibre 起点书籍信息和封面下载插件
 
 ### 测试
 
-* 运行```calibre-customize -b <项目目录>```将插件推送到calibre测试模式
+* 运行```calibre-customize -b <项目目录>\src```将插件推送到calibre测试模式
 * 运行```calibre-debug -e "<项目目录>\src\__init__.py"```进行测试
 * 运行```calibre-debug -g```开启calibre测试模式gui
