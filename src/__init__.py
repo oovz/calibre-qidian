@@ -449,15 +449,23 @@ if __name__ == "__main__":
 
     test_identify_plugin(
         Qidian.name, [
-            ({
-                 'identifiers': {
-                     'qidian': '1025325277'
-                 },
-             }, [title_test('我们生活在南京', exact=True),
-                 authors_test(['天瑞说符'])]),
-            ({
-                 'title': '一世之尊'
-             }, [title_test('一世之尊', exact=True),
-                 authors_test(['爱潜水的乌贼'])]),
+            (
+                {
+                    'identifiers': {
+                        'qidian': '1025325277'
+                    },
+                }, [title_test('我们生活在南京', exact=True), authors_test(['天瑞说符'])]
+            ),
+            (
+                {
+                    'title': '一世之尊'
+                }, [title_test('一世之尊', exact=True), authors_test(['爱潜水的乌贼'])]
+            ),
+            (
+                {
+                    'title': '怪物被杀就会死',
+                    'authors': ['阴天神隐']
+                }, [title_test('怪物被杀就会死', exact=True), authors_test(['阴天神隐'])]
+            ),
         ]
     )
