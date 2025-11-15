@@ -16,19 +16,20 @@ from lxml.html import tostring
 QIDIAN_SEARCH_URL = "https://www.qidian.com/so/%s.html"
 QIDIAN_BOOK_URL_OLD = "https://book.qidian.com/info/%s/"
 QIDIAN_BOOK_URL = 'https://www.qidian.com/book/%s/'
+M_QIDIAN_BOOK_URL = 'https://m.qidian.com/book/%s/'
 # Pattern to extract ID from both old and new Qidian URL formats
-QIDIAN_BOOK_URL_PATTERN = re.compile(r"(?:qidian\.com/book/|book\.qidian\.com/info/)(\d+)")
+QIDIAN_BOOK_URL_PATTERN = re.compile(r"(?:qidian\.com/book/|book\.qidian\.com/info/|m\.qidian\.com/book/)(\d+)")
 QIDIAN_BOOKCOVER_URL_OLD = 'https://bookcover.yuewen.com/qdbimg/349573/%s/'
 # note that without '/' the webserver will return the latest full-size cover image
 QIDIAN_BOOKCOVER_URL = 'https://bookcover.yuewen.com/qdbimg/349573/%s'
 
 # Bing search URL with site: operator to limit search to Qidian
-BING_SEARCH_URL = 'https://www.bing.com/search?q=%s+site%%3Aqidian.com'
+BING_SEARCH_URL = 'https://www.bing.com/search?q=%s+site%%253Awww.qidian.com'
 # XPath for Bing search results
 BING_SEARCH_RESULTS_XPATH = '//ol[@id="b_results"]/li[@class="b_algo"]//h2/a'
 
 PROVIDER_ID = "qidian"
-PROVIDER_VERSION = (1, 3, 1)
+PROVIDER_VERSION = (1, 4, 0)
 PROVIDER_AUTHOR = 'Otaro'
 
 def parse_html(raw):
@@ -60,6 +61,26 @@ class Qidian(Source):
 
     def __init__(self, *args, **kwargs):
         Source.__init__(self, *args, **kwargs)
+
+    def _get_browser(self):
+        br = self.browser
+        try:
+            headers = dict(getattr(br, 'addheaders', []))
+        except Exception:
+            headers = {}
+        headers['User-Agent'] = 'Mozilla/5.0 (Linux; Android 13; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Mobile Safari/537.36'
+        headers.setdefault('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8')
+        headers.setdefault('Accept-Language', 'zh-CN,zh;q=0.9,en;q=0.8')
+        br.addheaders = list(headers.items())
+        return br
+
+    def _first_text(self, values, default=None):
+        for v in values:
+            if v:
+                v = v.strip()
+                if v:
+                    return v
+        return default
 
     def get_book_url(self, identifiers):
         qidian_id = identifiers.get(PROVIDER_ID, None)
@@ -146,7 +167,7 @@ class Qidian(Source):
         log.info(f'Searching Bing with query: {query}')
         log.info(f'Search URL: {search_url}')
         
-        br = self.browser
+        br = self._get_browser()
         try:
             raw = br.open_novisit(search_url, timeout=timeout).read().strip()
             raw = clean_ascii_chars(xml_to_unicode(raw, strip_encoding_pats=True, resolve_entities=True)[0])
@@ -205,20 +226,22 @@ class Qidian(Source):
 
         qidian_id = identifiers.get(PROVIDER_ID, None)
         if qidian_id:
-            url = QIDIAN_BOOK_URL_OLD % qidian_id
-            log.info('identify with qidian id (%s) from url: %s' % (qidian_id, url))
-            br = self.browser
+            url = M_QIDIAN_BOOK_URL % qidian_id
+            log.info('identify with qidian id (%s) from mobile url: %s' % (qidian_id, url))
+            br = self._get_browser()
             try:
                 raw = br.open_novisit(url, timeout=timeout).read().strip()
             except Exception as e:
                 log.exception(e)
-                # Try the new URL format if the old one fails
-                try:
-                    url = QIDIAN_BOOK_URL % qidian_id
-                    log.info('Trying new URL format: %s' % url)
-                    raw = br.open_novisit(url, timeout=timeout).read().strip()
-                except Exception as e:
-                    log.exception(e)
+                for url_tpl in (QIDIAN_BOOK_URL_OLD, QIDIAN_BOOK_URL):
+                    try:
+                        url = url_tpl % qidian_id
+                        log.info('Trying fallback URL: %s' % url)
+                        raw = br.open_novisit(url, timeout=timeout).read().strip()
+                        break
+                    except Exception as e2:
+                        log.exception(e2)
+                else:
                     return None
 
             raw = clean_ascii_chars(xml_to_unicode(raw, strip_encoding_pats=True, resolve_entities=True)[0])
@@ -228,11 +251,33 @@ class Qidian(Source):
             except Exception as e:
                 log.exception(e)
                 return None
-            
-            title = root.xpath('//em[@id="bookName"]')[0].text
-            author = root.xpath('//a[@class="writer"]')[0].text
-            desc = tostring(root.xpath('//div[@class="book-intro"]')[0], method='html', encoding='utf-8').strip()
-            tags = list(map(lambda elem: elem.text, root.xpath('//p[contains(@class, "tag")]/a[contains(@class, "red")]')))
+
+            title = self._first_text(
+                root.xpath('//meta[@property="og:novel:book_name"]/@content') +
+                root.xpath('//meta[@property="og:title"]/@content')
+            )
+            author = self._first_text(
+                root.xpath('//meta[@property="og:novel:author"]/@content')
+            )
+            desc = self._first_text(
+                root.xpath('//meta[@property="og:description"]/@content') +
+                root.xpath('//meta[@name="description"]/@content')
+            )
+            category = self._first_text(
+                root.xpath('//meta[@property="og:novel:category"]/@content')
+            )
+            status = self._first_text(
+                root.xpath('//meta[@property="og:novel:status"]/@content')
+            )
+            tags = []
+            if category:
+                tags.append(category)
+            if status:
+                tags.append(status)
+
+            if not title or not author:
+                log.error('Failed to extract title/author from Qidian mobile page for id %s' % qidian_id)
+                return None
 
             mi = Metadata(title, [author])
             mi.identifiers = { PROVIDER_ID: qidian_id }
@@ -373,7 +418,7 @@ class Qidian(Source):
             return
 
         cover_url = QIDIAN_BOOKCOVER_URL % qidian_id
-        br = self.browser
+        br = self._get_browser()
         log('Downloading latest cover from:', cover_url)
         try:
             time.sleep(1)
@@ -385,7 +430,7 @@ class Qidian(Source):
 
         # @TODO: implement a comparison method for get_best_cover
         old_cover_url = QIDIAN_BOOKCOVER_URL_OLD % qidian_id
-        br = self.browser
+        br = self._get_browser()
         log('Downloading old cover from:', old_cover_url)
         try:
             time.sleep(1)
