@@ -17,19 +17,20 @@ QIDIAN_SEARCH_URL = "https://www.qidian.com/so/%s.html"
 QIDIAN_BOOK_URL_OLD = "https://book.qidian.com/info/%s/"
 QIDIAN_BOOK_URL = 'https://www.qidian.com/book/%s/'
 M_QIDIAN_BOOK_URL = 'https://m.qidian.com/book/%s/'
-# Pattern to extract ID from both old and new Qidian URL formats
-QIDIAN_BOOK_URL_PATTERN = re.compile(r"(?:qidian\.com/book/|book\.qidian\.com/info/|m\.qidian\.com/book/)(\d+)")
+M_QIDIAN_SOUSHU_URL = 'https://m.qidian.com/soushu/%s.html'
+# Pattern to extract ID from both old and new Qidian URL formats, and chapter link
+QIDIAN_BOOK_URL_PATTERN = re.compile(r"(?:qidian\.com/book/|book\.qidian\.com/info/|m\.qidian\.com/book/|m\.qidian\.com/chapter/)(\d+)")
 QIDIAN_BOOKCOVER_URL_OLD = 'https://bookcover.yuewen.com/qdbimg/349573/%s/'
 # note that without '/' the webserver will return the latest full-size cover image
 QIDIAN_BOOKCOVER_URL = 'https://bookcover.yuewen.com/qdbimg/349573/%s'
 
 # Bing search URL with site: operator to limit search to Qidian
-BING_SEARCH_URL = 'https://www.bing.com/search?q=%s+site%%253Awww.qidian.com'
+BING_SEARCH_BASE_URL = 'https://www.bing.com/search'
 # XPath for Bing search results
 BING_SEARCH_RESULTS_XPATH = '//ol[@id="b_results"]/li[@class="b_algo"]//h2/a'
 
 PROVIDER_ID = "qidian"
-PROVIDER_VERSION = (1, 4, 0)
+PROVIDER_VERSION = (1, 4, 1)
 PROVIDER_AUTHOR = 'Otaro'
 
 def parse_html(raw):
@@ -103,50 +104,120 @@ class Qidian(Source):
             return res[0]
         return None
         
-    def extract_real_url_from_ck(self, href, log):
-        """
-        Extract the real URL from a Bing click tracking (CK) link.
-        These links contain an encoded target URL in the 'u' parameter.
-        If not a CK link, returns the original URL.
-        """
-        try:
-            # Check if this is a Bing tracking link
-            if 'bing.com/ck/' in href:
-                log.info(f'Detected Bing click tracking URL: {href}')
+    # def extract_real_url_from_ck(self, href, log):
+    #     """
+    #     Extract the real URL from a Bing click tracking (CK) link.
+    #     These links contain an encoded target URL in the 'u' parameter.
+    #     If not a CK link, returns the original URL.
+    #     """
+    #     try:
+    #         # Check if this is a Bing tracking link
+    #         if 'bing.com/ck/' in href:
+    #             log.info(f'Detected Bing click tracking URL: {href}')
                 
-                # Parse the URL and extract query parameters
-                parsed_url = urlparse(href)
-                query_params = parse_qs(parsed_url.query)
+    #             # Parse the URL and extract query parameters
+    #             parsed_url = urlparse(href)
+    #             query_params = parse_qs(parsed_url.query)
                 
-                # Look for the 'u' parameter containing the encoded URL
-                if 'u' in query_params and query_params['u']:
-                    encoded_url = query_params['u'][0]
+    #             # Look for the 'u' parameter containing the encoded URL
+    #             if 'u' in query_params and query_params['u']:
+    #                 encoded_url = query_params['u'][0]
                     
-                    # Bing adds 'a1' prefix to the base64 encoding
-                    if encoded_url.startswith('a1'):
-                        encoded_url = encoded_url[2:]  # Remove the 'a1' prefix
+    #                 # Bing adds 'a1' prefix to the base64 encoding
+    #                 if encoded_url.startswith('a1'):
+    #                     encoded_url = encoded_url[2:]  # Remove the 'a1' prefix
                     
-                    # Decode from base64
-                    try:
-                        # Add padding if needed
-                        padding_needed = len(encoded_url) % 4
-                        if padding_needed:
-                            encoded_url += '=' * (4 - padding_needed)
+    #                 # Decode from base64
+    #                 try:
+    #                     # Add padding if needed
+    #                     padding_needed = len(encoded_url) % 4
+    #                     if padding_needed:
+    #                         encoded_url += '=' * (4 - padding_needed)
                             
-                        real_url = base64.b64decode(encoded_url).decode('utf-8')
-                        log.info(f"Extracted real URL: {real_url}")
-                        return real_url
-                    except Exception as e:
-                        log.error(f"Failed to decode base64 URL: {e}")
+    #                     real_url = base64.b64decode(encoded_url).decode('utf-8')
+    #                     log.info(f"Extracted real URL: {real_url}")
+    #                     return real_url
+    #                 except Exception as e:
+    #                     log.error(f"Failed to decode base64 URL: {e}")
             
-            # If not a CK link or decoding fails, return the original URL
-            return href
-        except Exception as e:
-            log.error(f"Error processing URL {href}: {e}")
-            return href
+    #         # If not a CK link or decoding fails, return the original URL
+    #         return href
+    #     except Exception as e:
+    #         log.error(f"Error processing URL {href}: {e}")
+    #         return href
         
-    def search_bing_for_qidian(self, title, author, log, timeout=30):
-        """Search Bing for books on Qidian based on title and author"""
+    # def search_bing_for_qidian(self, title, author, log, timeout=30):
+    #     """Search Bing for books on Qidian based on title and author"""
+    #     # Build search terms
+    #     search_terms = []
+        
+    #     if not title:
+    #         log.error('Title is required for searching')
+    #         return []
+            
+    #     search_terms.append(title)
+        
+    #     if author:
+    #         search_terms.append(author)
+        
+    #     combined = " ".join(search_terms)
+    #     q = f"{combined} site:www.qidian.com"
+    #     params = {"q": q}
+        
+    #     search_url = BING_SEARCH_BASE_URL + "?" + urlencode(params)
+        
+    #     log.info(f'Searching Bing with query: {combined}')
+    #     log.info(f'Search URL: {search_url}')
+        
+    #     br = self._get_browser()
+    #     try:
+    #         raw = br.open_novisit(search_url, timeout=timeout).read().strip()
+    #         raw = clean_ascii_chars(xml_to_unicode(raw, strip_encoding_pats=True, resolve_entities=True)[0])
+            
+    #         root = parse_html(raw)
+            
+    #         # Use the specific XPath for Bing search results
+    #         search_results = root.xpath(BING_SEARCH_RESULTS_XPATH, method='html', encoding='utf-8')
+            
+    #         log.info(f'Found {len(search_results)} search results from Bing')
+            
+    #         # Process results to find valid Qidian book pages
+    #         found_ids = []
+            
+    #         for result in search_results:
+    #             href = result.get('href', '')
+                
+    #             # Process the href to handle Bing click tracking links
+    #             href = self.extract_real_url_from_ck(href, log)
+
+    #             # Extract all text from the element, including text in <strong> tags
+    #             result_text = "".join(result.xpath('.//text()', method='html', encoding='utf-8')).strip()
+                
+    #             log.info(f'Examining search result: "{result_text}" -> {href}')
+                
+    #             # Skip if not a Qidian URL
+    #             if 'qidian.com' not in href:
+    #                 continue
+                    
+    #             # Skip category pages, search pages, rank pages, etc.
+    #             if any(x in href for x in ['search', 'category', 'rank', 'forum', 'user']):
+    #                 continue
+                
+    #             # Extract book ID from URL
+    #             qidian_id = self.id_from_url(href)
+                
+    #             if qidian_id:
+    #                 log.info(f'Found book ID: {qidian_id} from URL: {href}')
+    #                 found_ids.append((qidian_id, href, result_text))
+            
+    #         return found_ids
+            
+    #     except Exception as e:
+    #         log.exception(f'Error searching Bing: {e}')
+    #         return []
+
+    def search_qidian(self, title, author, log, timeout=30):
+        """Search Qidian Mobile for books based on title and author"""
         # Build search terms
         search_terms = []
         
@@ -159,12 +230,11 @@ class Qidian(Source):
         if author:
             search_terms.append(author)
         
-        query = " ".join(search_terms)
-        encoded_query = quote(query)
+        combined = "".join(search_terms)
         
-        search_url = BING_SEARCH_URL % encoded_query
+        search_url = M_QIDIAN_SOUSHU_URL % quote(combined)
         
-        log.info(f'Searching Bing with query: {query}')
+        log.info(f'Searching Qidian with query: {combined}')
         log.info(f'Search URL: {search_url}')
         
         br = self._get_browser()
@@ -174,19 +244,17 @@ class Qidian(Source):
             
             root = parse_html(raw)
             
-            # Use the specific XPath for Bing search results
-            search_results = root.xpath(BING_SEARCH_RESULTS_XPATH, method='html', encoding='utf-8')
+            # Use the specific XPath for Qidian search results
+            search_results = root.xpath('//div[contains(@class, "searchResList")]//div[contains(@class, "list__item")]/a[contains(@class, "listItem")]', method='html', encoding='utf-8')
             
-            log.info(f'Found {len(search_results)} search results from Bing')
+            log.info(f'Found {len(search_results)} search results from Qidian')
             
             # Process results to find valid Qidian book pages
             found_ids = []
             
             for result in search_results:
+                # link returned here is chapter link
                 href = result.get('href', '')
-                
-                # Process the href to handle Bing click tracking links
-                href = self.extract_real_url_from_ck(href, log)
 
                 # Extract all text from the element, including text in <strong> tags
                 result_text = "".join(result.xpath('.//text()', method='html', encoding='utf-8')).strip()
@@ -195,10 +263,6 @@ class Qidian(Source):
                 
                 # Skip if not a Qidian URL
                 if 'qidian.com' not in href:
-                    continue
-                    
-                # Skip category pages, search pages, rank pages, etc.
-                if any(x in href for x in ['search', 'category', 'rank', 'forum', 'user']):
                     continue
                 
                 # Extract book ID from URL
@@ -309,16 +373,16 @@ class Qidian(Source):
         # First try with both title and author if both are available
         if author:
             log.info(f'Searching with title "{title}" and author "{author}"')
-            search_results = self.search_bing_for_qidian(title, author, log, timeout)
+            search_results = self.search_qidian(title, author, log, timeout)
             
             # If we got no results with author included, retry with just title
             if not search_results:
                 log.info(f'No results found with title and author, retrying with title only: "{title}"')
-                search_results = self.search_bing_for_qidian(title, None, log, timeout)
+                search_results = self.search_qidian(title, None, log, timeout)
         else:
             # Search with title only
             log.info(f'Searching with title only: "{title}"')
-            search_results = self.search_bing_for_qidian(title, None, log, timeout)
+            search_results = self.search_qidian(title, None, log, timeout)
         
         if not search_results:
             log.error('No matching books found on Qidian via Bing search')
@@ -466,6 +530,12 @@ if __name__ == "__main__":
                     'title': '怪物被杀就会死',
                     'authors': ['阴天神隐']
                 }, [title_test('怪物被杀就会死', exact=True), authors_test(['阴天神隐'])]
+            ),
+            (
+                {
+                    'title': '美漫',
+                    'authors': ['遇牧']
+                }, [title_test('在美漫当心灵导师的日子', exact=True), authors_test(['遇牧烧绳'])]
             ),
         ]
     )
